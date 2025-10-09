@@ -256,21 +256,24 @@ echo ""
 sleep 1
 
 ###############################################################################
-# STEP 5: Clone N8N Docker Caddy Repository
+# STEP 5: Setup N8N Installation Directory
 ###############################################################################
 print_step "STEP 5: Setting Up N8N"
+
+# Set installation directory
+INSTALL_DIR="/root/n8n"
 
 # Navigate to root directory
 cd /root
 
 # Remove old installation if exists
-if [ -d "n8n-docker-caddy" ]; then
-    print_warning "Existing installation found"
+if [ -d "$INSTALL_DIR" ]; then
+    print_warning "Existing installation found at $INSTALL_DIR"
     read -p "$(echo -e ${YELLOW}Remove and reinstall? ${NC}${WHITE}[Y/n]${NC}: )" -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
         print_info "Backing up old installation..."
-        mv n8n-docker-caddy n8n-docker-caddy-backup-$(date +%Y%m%d-%H%M%S)
+        mv "$INSTALL_DIR" "${INSTALL_DIR}-backup-$(date +%Y%m%d-%H%M%S)"
         print_success "Old installation backed up"
     else
         print_error "Installation cancelled"
@@ -278,11 +281,17 @@ if [ -d "n8n-docker-caddy" ]; then
     fi
 fi
 
-# Clone repository
-print_info "Cloning official n8n-docker-caddy repository..."
-git clone -q https://github.com/n8n-io/n8n-docker-caddy.git
-cd n8n-docker-caddy
-print_success "Repository cloned"
+# Create installation directory
+print_info "Creating installation directory..."
+mkdir -p "$INSTALL_DIR"
+cd "$INSTALL_DIR"
+print_success "Installation directory created: $INSTALL_DIR"
+
+# Create required subdirectories
+print_info "Creating directory structure..."
+mkdir -p caddy_config
+mkdir -p local_files
+print_success "Directory structure created"
 
 echo ""
 sleep 1
@@ -292,9 +301,25 @@ sleep 1
 ###############################################################################
 print_step "STEP 6: Creating Configuration Files"
 
+# Determine the script directory (where install.sh is located)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOCKER_TEMPLATES_DIR="$SCRIPT_DIR/docker"
+CADDY_TEMPLATES_DIR="$SCRIPT_DIR/caddy"
+
+# Verify template files exist
+if [ ! -f "$DOCKER_TEMPLATES_DIR/docker-compose.yml" ]; then
+    print_error "Template file not found: $DOCKER_TEMPLATES_DIR/docker-compose.yml"
+    exit 1
+fi
+
+if [ ! -f "$CADDY_TEMPLATES_DIR/Caddyfile" ]; then
+    print_error "Template file not found: $CADDY_TEMPLATES_DIR/Caddyfile"
+    exit 1
+fi
+
 # Create .env file
 print_info "Creating .env configuration..."
-cat > .env << EOF
+cat > .env << ENVEOF
 # Domain configuration
 DOMAIN_NAME=$DOMAIN_NAME
 SUBDOMAIN=$SUBDOMAIN
@@ -306,40 +331,59 @@ SSL_EMAIL=$SSL_EMAIL
 GENERIC_TIMEZONE=$TIMEZONE
 
 # Data storage path
-DATA_FOLDER=/root/n8n-docker-caddy
-EOF
+DATA_FOLDER=$INSTALL_DIR
+ENVEOF
 print_success ".env file created"
 
-# Create Caddyfile
-print_info "Creating Caddyfile..."
-cat > Caddyfile << 'EOF'
-{$SUBDOMAIN}.{$DOMAIN_NAME} {
-    reverse_proxy n8n:5678 {
-        flush_interval -1
-    }
+# Copy and configure docker-compose.yml
+print_info "Configuring docker-compose.yml..."
+cp "$DOCKER_TEMPLATES_DIR/docker-compose.yml" docker-compose.yml
+sed -i "s|__DATA_FOLDER__|$INSTALL_DIR|g" docker-compose.yml
+sed -i "s|__SUBDOMAIN__|$SUBDOMAIN|g" docker-compose.yml
+sed -i "s|__DOMAIN_NAME__|$DOMAIN_NAME|g" docker-compose.yml
+sed -i "s|__TIMEZONE__|$TIMEZONE|g" docker-compose.yml
+print_success "docker-compose.yml configured"
 
-    encode gzip
-
-    tls {$SSL_EMAIL}
-
-    header {
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-        X-Content-Type-Options "nosniff"
-        X-Frame-Options "SAMEORIGIN"
-        X-XSS-Protection "1; mode=block"
-        Referrer-Policy "strict-origin-when-cross-origin"
-    }
-}
-EOF
-print_success "Caddyfile created with security headers"
+# Copy and configure Caddyfile
+print_info "Configuring Caddyfile..."
+cp "$CADDY_TEMPLATES_DIR/Caddyfile" caddy_config/Caddyfile
+sed -i "s|__SUBDOMAIN__|$SUBDOMAIN|g" caddy_config/Caddyfile
+sed -i "s|__DOMAIN_NAME__|$DOMAIN_NAME|g" caddy_config/Caddyfile
+sed -i "s|__SSL_EMAIL__|$SSL_EMAIL|g" caddy_config/Caddyfile
+print_success "Caddyfile configured with security headers"
 
 echo ""
 sleep 1
 
 ###############################################################################
-# STEP 7: Start Services
+# STEP 7: Create Docker Volumes
 ###############################################################################
-print_step "STEP 7: Starting N8N Services"
+print_step "STEP 7: Creating Docker Volumes"
+
+# Create external Docker volumes required by docker-compose.yml
+print_info "Creating caddy_data volume..."
+if docker volume inspect caddy_data > /dev/null 2>&1; then
+    print_warning "Volume 'caddy_data' already exists"
+else
+    docker volume create caddy_data
+    print_success "Volume 'caddy_data' created"
+fi
+
+print_info "Creating n8n_data volume..."
+if docker volume inspect n8n_data > /dev/null 2>&1; then
+    print_warning "Volume 'n8n_data' already exists"
+else
+    docker volume create n8n_data
+    print_success "Volume 'n8n_data' created"
+fi
+
+echo ""
+sleep 1
+
+###############################################################################
+# STEP 8: Start Services
+###############################################################################
+print_step "STEP 8: Starting N8N Services"
 
 print_info "Starting Docker containers..."
 docker compose up -d
@@ -348,7 +392,7 @@ docker compose up -d
 sleep 5
 
 # Check if containers are running
-if docker ps | grep -q "n8n-docker-caddy-n8n-1" && docker ps | grep -q "n8n-docker-caddy-caddy-1"; then
+if docker ps | grep -q "n8n" && docker ps | grep -q "caddy"; then
     print_success "N8N and Caddy containers are running"
 else
     print_error "Containers failed to start. Checking logs..."
@@ -360,9 +404,9 @@ echo ""
 sleep 1
 
 ###############################################################################
-# STEP 8: Create Utility Scripts
+# STEP 9: Create Utility Scripts
 ###############################################################################
-print_step "STEP 8: Creating Utility Scripts"
+print_step "STEP 9: Creating Utility Scripts"
 
 # check-status.sh
 print_info "Creating check-status.sh..."
@@ -398,9 +442,9 @@ echo ""
 sleep 1
 
 ###############################################################################
-# STEP 9: Setup Watchtower
+# STEP 10: Setup Watchtower
 ###############################################################################
-print_step "STEP 9: Setting Up Auto-Updates"
+print_step "STEP 10: Setting Up Auto-Updates"
 
 print_info "Configuring Watchtower for automatic updates..."
 ./setup-watchtower.sh
@@ -409,9 +453,9 @@ echo ""
 sleep 1
 
 ###############################################################################
-# STEP 10: Get Server IP
+# STEP 11: Get Server IP
 ###############################################################################
-print_step "STEP 10: Network Configuration"
+print_step "STEP 11: Network Configuration"
 
 print_info "Detecting server IP address..."
 SERVER_IP=$(curl -s ifconfig.me)
@@ -467,7 +511,7 @@ echo "   • DNS propagation"
 echo "   • SSL certificate generation"
 echo ""
 echo "4. Check status:"
-echo "   cd /root/n8n-docker-caddy"
+echo "   cd /root/n8n"
 echo "   ./check-status.sh"
 echo ""
 echo "5. Access N8N:"
@@ -477,7 +521,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "  🔧 Useful Commands"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "All commands run from: /root/n8n-docker-caddy"
+echo "All commands run from: /root/n8n"
 echo ""
 echo "  ./check-status.sh       # Check system status"
 echo "  ./restart-all.sh        # Restart all services"

@@ -1,0 +1,63 @@
+version: '3.8'
+
+volumes:
+  postgres_data:
+  n8n_data:
+  caddy_data:
+
+services:
+  postgres:
+    image: postgres:16
+    restart: always
+    environment:
+      - POSTGRES_USER=__POSTGRES_USER__
+      - POSTGRES_PASSWORD=__POSTGRES_PASSWORD__
+      - POSTGRES_DB=n8n
+      - POSTGRES_NON_ROOT_USER=__POSTGRES_NON_ROOT_USER__
+      - POSTGRES_NON_ROOT_PASSWORD=__POSTGRES_NON_ROOT_PASSWORD__
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - __DATA_FOLDER__/init-data.sh:/docker-entrypoint-initdb.d/init-data.sh
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h localhost -U __POSTGRES_USER__ -d n8n']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  caddy:
+    image: caddy:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - __DATA_FOLDER__/caddy_config:/config
+      - __DATA_FOLDER__/caddy_config/Caddyfile:/etc/caddy/Caddyfile
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    restart: always
+    ports:
+      - 5678:5678
+    environment:
+      - N8N_HOST=__SUBDOMAIN__.__DOMAIN_NAME__
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://__SUBDOMAIN__.__DOMAIN_NAME__/
+      - GENERIC_TIMEZONE=__TIMEZONE__
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=__POSTGRES_NON_ROOT_USER__
+      - DB_POSTGRESDB_PASSWORD=__POSTGRES_NON_ROOT_PASSWORD__
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - __DATA_FOLDER__/local_files:/files
+    depends_on:
+      postgres:
+        condition: service_healthy
+    links:
+      - postgres

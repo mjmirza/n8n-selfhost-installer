@@ -1,0 +1,93 @@
+{
+  "name": "AI Code Generator with CodeLlama",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-code",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "webhookId": "generate-code"
+    },
+    {
+      "parameters": {
+        "jsCode": "const language = $input.item.json.language || 'python';\nconst task = $input.item.json.task;\n\nconst prompt = `You are an expert ${language} programmer. Write clean, efficient, well-documented code.\n\nTask: ${task}\n\nProvide only the code with comments. No explanations before or after.`;\n\nreturn { prompt, language, task };"
+      },
+      "id": "build-prompt",
+      "name": "Build Code Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "codellama:7b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.prompt }}"
+            },
+            {
+              "name": "stream",
+              "value": false
+            },
+            {
+              "name": "options",
+              "value": "={{ { temperature: 0.2, top_p: 0.9 } }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-code",
+      "name": "Generate Code",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, language: $('Build Code Prompt').item.json.language, task: $('Build Code Prompt').item.json.task, code: $json.response } }}"
+      },
+      "id": "respond-webhook-1",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Build Code Prompt", "type": "main", "index": 0 }]]
+    },
+    "Build Code Prompt": {
+      "main": [[{ "node": "Generate Code", "type": "main", "index": 0 }]]
+    },
+    "Generate Code": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [{"id": "ai", "name": "AI"}, {"id": "code", "name": "Code Generation"}],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-10T00:00:00.000Z",
+  "versionId": "1"
+}
