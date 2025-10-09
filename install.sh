@@ -303,17 +303,18 @@ print_step "STEP 6: Creating Configuration Files"
 
 # Determine the script directory (where install.sh is located)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DOCKER_TEMPLATES_DIR="$SCRIPT_DIR/docker"
-CADDY_TEMPLATES_DIR="$SCRIPT_DIR/caddy"
+TEMPLATES_DIR="$SCRIPT_DIR/deployments/simple"
 
 # Verify template files exist
-if [ ! -f "$DOCKER_TEMPLATES_DIR/docker-compose.yml" ]; then
-    print_error "Template file not found: $DOCKER_TEMPLATES_DIR/docker-compose.yml"
+if [ ! -f "$TEMPLATES_DIR/docker-compose.yml" ]; then
+    print_error "Template file not found: $TEMPLATES_DIR/docker-compose.yml"
+    print_error "Please ensure you're running from the repository root"
     exit 1
 fi
 
-if [ ! -f "$CADDY_TEMPLATES_DIR/Caddyfile" ]; then
-    print_error "Template file not found: $CADDY_TEMPLATES_DIR/Caddyfile"
+if [ ! -f "$TEMPLATES_DIR/Caddyfile" ]; then
+    print_error "Template file not found: $TEMPLATES_DIR/Caddyfile"
+    print_error "Please ensure you're running from the repository root"
     exit 1
 fi
 
@@ -337,7 +338,7 @@ print_success ".env file created"
 
 # Copy and configure docker-compose.yml
 print_info "Configuring docker-compose.yml..."
-cp "$DOCKER_TEMPLATES_DIR/docker-compose.yml" docker-compose.yml
+cp "$TEMPLATES_DIR/docker-compose.yml" docker-compose.yml
 sed -i "s|__DATA_FOLDER__|$INSTALL_DIR|g" docker-compose.yml
 sed -i "s|__SUBDOMAIN__|$SUBDOMAIN|g" docker-compose.yml
 sed -i "s|__DOMAIN_NAME__|$DOMAIN_NAME|g" docker-compose.yml
@@ -346,7 +347,7 @@ print_success "docker-compose.yml configured"
 
 # Copy and configure Caddyfile
 print_info "Configuring Caddyfile..."
-cp "$CADDY_TEMPLATES_DIR/Caddyfile" caddy_config/Caddyfile
+cp "$TEMPLATES_DIR/Caddyfile" caddy_config/Caddyfile
 sed -i "s|__SUBDOMAIN__|$SUBDOMAIN|g" caddy_config/Caddyfile
 sed -i "s|__DOMAIN_NAME__|$DOMAIN_NAME|g" caddy_config/Caddyfile
 sed -i "s|__SSL_EMAIL__|$SSL_EMAIL|g" caddy_config/Caddyfile
