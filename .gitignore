@@ -1,0 +1,37 @@
+# Environment variables
+.env
+
+# Backups
+backups/
+*.tar.gz
+*.zip
+
+# Data directories (from n8n-docker-caddy)
+caddy_data/
+caddy_config/
+n8n_data/
+local_files/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.claude/
+
+# Docker
+docker-compose.override.yml
+
+# Temporary files
+tmp/
+temp/
+*.tmp
