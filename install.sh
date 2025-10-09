@@ -16,19 +16,21 @@
 
 set -e  # Exit on error
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Colors for output (works in both dark and light terminals)
+RED='\033[0;91m'      # Bright red (works in both modes)
+GREEN='\033[0;92m'    # Bright green (works in both modes)
+YELLOW='\033[0;93m'   # Bright yellow (works in both modes)
+CYAN='\033[0;96m'     # Bright cyan (works in both modes)
+MAGENTA='\033[0;95m'  # Bright magenta for headers
+NC='\033[0m'          # No Color
+BOLD='\033[1m'        # Bold text
 
 # Print colored output
 print_success() { echo -e "${GREEN}✅ $1${NC}"; }
 print_error() { echo -e "${RED}❌ $1${NC}"; }
 print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
-print_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
-print_step() { echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"; echo -e "${BLUE}$1${NC}"; echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"; }
+print_info() { echo -e "${CYAN}ℹ️  $1${NC}"; }
+print_step() { echo -e "\n${BOLD}${MAGENTA}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"; echo -e "${BOLD}${MAGENTA}$1${NC}"; echo -e "${BOLD}${MAGENTA}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"; }
 
 # Banner
 clear
@@ -109,7 +111,7 @@ echo ""
 
 # Domain name
 while true; do
-    read -p "$(echo -e ${BLUE}📌 Enter your domain name ${NC}${YELLOW}[e.g., example.com]${NC}: )" DOMAIN_NAME
+    read -p "$(echo -e ${CYAN}📌 Enter your domain name ${NC}${YELLOW}[e.g., example.com]${NC}: )" DOMAIN_NAME
     if [[ $DOMAIN_NAME =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$ ]]; then
         print_success "Domain: $DOMAIN_NAME"
         break
@@ -124,7 +126,7 @@ print_info "Choose a subdomain for N8N"
 print_info "Tip: Use obscure names for security (e.g., automation-x7k3)"
 echo ""
 while true; do
-    read -p "$(echo -e ${BLUE}📌 Enter subdomain ${NC}${YELLOW}[e.g., n8n or automation-secure]${NC}: )" SUBDOMAIN
+    read -p "$(echo -e ${CYAN}📌 Enter subdomain ${NC}${YELLOW}[e.g., n8n or automation-secure]${NC}: )" SUBDOMAIN
     if [[ $SUBDOMAIN =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$ ]]; then
         print_success "Subdomain: $SUBDOMAIN"
         FULL_DOMAIN="${SUBDOMAIN}.${DOMAIN_NAME}"
@@ -138,7 +140,7 @@ done
 # Email for SSL
 echo ""
 while true; do
-    read -p "$(echo -e ${BLUE}📌 Enter email for SSL certificates ${NC}${YELLOW}[e.g., admin@$DOMAIN_NAME]${NC}: )" SSL_EMAIL
+    read -p "$(echo -e ${CYAN}📌 Enter email for SSL certificates ${NC}${YELLOW}[e.g., admin@$DOMAIN_NAME]${NC}: )" SSL_EMAIL
     if [[ $SSL_EMAIL =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
         print_success "Email: $SSL_EMAIL"
         break
@@ -158,7 +160,7 @@ echo "  3) America/New_York"
 echo "  4) Asia/Tokyo"
 echo "  5) Custom (enter manually)"
 echo ""
-read -p "$(echo -e ${BLUE}Select option ${NC}${YELLOW}[1-5]${NC}: )" TZ_OPTION
+read -p "$(echo -e ${CYAN}Select option ${NC}${YELLOW}[1-5]${NC}: )" TZ_OPTION
 
 case $TZ_OPTION in
     1) TIMEZONE="UTC" ;;
@@ -166,7 +168,7 @@ case $TZ_OPTION in
     3) TIMEZONE="America/New_York" ;;
     4) TIMEZONE="Asia/Tokyo" ;;
     5)
-        read -p "$(echo -e ${BLUE}Enter custom timezone ${NC}${YELLOW}[e.g., Europe/London]${NC}: )" TIMEZONE
+        read -p "$(echo -e ${CYAN}Enter custom timezone ${NC}${YELLOW}[e.g., Europe/London]${NC}: )" TIMEZONE
         ;;
     *) TIMEZONE="UTC" ;;
 esac
@@ -183,7 +185,7 @@ echo "  Email:     $SSL_EMAIL"
 echo "  Timezone:  $TIMEZONE"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-read -p "$(echo -e ${YELLOW}Continue with this configuration? ${NC}${BLUE}[Y/n]${NC}: )" -n 1 -r
+read -p "$(echo -e ${CYAN}Continue with this configuration? ${NC}${WHITE}[Y/n]${NC}: )" -n 1 -r
 echo
 if [[ ! $REPLY =~ ^[Yy]$ ]] && [[ ! -z $REPLY ]]; then
     print_error "Installation cancelled"
@@ -264,7 +266,7 @@ cd /root
 # Remove old installation if exists
 if [ -d "n8n-docker-caddy" ]; then
     print_warning "Existing installation found"
-    read -p "$(echo -e ${YELLOW}Remove and reinstall? ${NC}${BLUE}[Y/n]${NC}: )" -n 1 -r
+    read -p "$(echo -e ${YELLOW}Remove and reinstall? ${NC}${WHITE}[Y/n]${NC}: )" -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
         print_info "Backing up old installation..."
