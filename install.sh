@@ -11,7 +11,13 @@
 # - Watchtower auto-updates
 # - Utility scripts creation
 #
-# Usage: curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/n8n-rapid-deploy/main/install.sh | sudo bash
+# Usage:
+#   1. Clone/download the repository to your server
+#   2. Navigate to the installer directory: cd n8n-selfhost-installer
+#   3. Run the installer: sudo bash install.sh
+#
+# The installer uses local templates and scripts from the repository structure.
+# No external dependencies or downloads required (except Docker components).
 ###############################################################################
 
 set -e  # Exit on error
@@ -304,19 +310,24 @@ print_step "STEP 6: Creating Configuration Files"
 # Determine the script directory (where install.sh is located)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATES_DIR="$SCRIPT_DIR/deployments/simple"
+SCRIPTS_DIR="$SCRIPT_DIR/scripts"
 
 # Verify template files exist
 if [ ! -f "$TEMPLATES_DIR/docker-compose.yml" ]; then
     print_error "Template file not found: $TEMPLATES_DIR/docker-compose.yml"
-    print_error "Please ensure you're running from the repository root"
+    print_error "Please ensure you're running install.sh from the repository root:"
+    print_error "  cd n8n-selfhost-installer && sudo bash install.sh"
     exit 1
 fi
 
 if [ ! -f "$TEMPLATES_DIR/Caddyfile" ]; then
     print_error "Template file not found: $TEMPLATES_DIR/Caddyfile"
-    print_error "Please ensure you're running from the repository root"
+    print_error "Please ensure you're running install.sh from the repository root:"
+    print_error "  cd n8n-selfhost-installer && sudo bash install.sh"
     exit 1
 fi
+
+print_success "Found local template files in repository"
 
 # Create .env file
 print_info "Creating .env configuration..."
@@ -405,39 +416,64 @@ echo ""
 sleep 1
 
 ###############################################################################
-# STEP 9: Create Utility Scripts
+# STEP 9: Copy Utility Scripts
 ###############################################################################
-print_step "STEP 9: Creating Utility Scripts"
+print_step "STEP 9: Setting Up Utility Scripts"
+
+# Verify scripts directory exists
+if [ ! -d "$SCRIPTS_DIR" ]; then
+    print_error "Scripts directory not found: $SCRIPTS_DIR"
+    print_error "Please ensure you have the complete repository structure"
+    exit 1
+fi
+
+# Copy utility scripts from repository
+print_info "Copying utility scripts..."
 
 # check-status.sh
-print_info "Creating check-status.sh..."
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/n8n-rapid-deploy/main/scripts/check-status.sh -o check-status.sh
-chmod +x check-status.sh
-print_success "check-status.sh created"
+if [ -f "$SCRIPTS_DIR/check-status.sh" ]; then
+    cp "$SCRIPTS_DIR/check-status.sh" check-status.sh
+    chmod +x check-status.sh
+    print_success "check-status.sh created"
+else
+    print_warning "check-status.sh not found in repository"
+fi
 
 # restart-all.sh
-print_info "Creating restart-all.sh..."
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/n8n-rapid-deploy/main/scripts/restart-all.sh -o restart-all.sh
-chmod +x restart-all.sh
-print_success "restart-all.sh created"
+if [ -f "$SCRIPTS_DIR/restart-all.sh" ]; then
+    cp "$SCRIPTS_DIR/restart-all.sh" restart-all.sh
+    chmod +x restart-all.sh
+    print_success "restart-all.sh created"
+else
+    print_warning "restart-all.sh not found in repository"
+fi
 
 # update-n8n.sh
-print_info "Creating update-n8n.sh..."
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/n8n-rapid-deploy/main/scripts/update-n8n.sh -o update-n8n.sh
-chmod +x update-n8n.sh
-print_success "update-n8n.sh created"
+if [ -f "$SCRIPTS_DIR/update-n8n.sh" ]; then
+    cp "$SCRIPTS_DIR/update-n8n.sh" update-n8n.sh
+    chmod +x update-n8n.sh
+    print_success "update-n8n.sh created"
+else
+    print_warning "update-n8n.sh not found in repository"
+fi
 
 # setup-watchtower.sh
-print_info "Creating setup-watchtower.sh..."
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/n8n-rapid-deploy/main/scripts/setup-watchtower.sh -o setup-watchtower.sh
-chmod +x setup-watchtower.sh
-print_success "setup-watchtower.sh created"
+if [ -f "$SCRIPTS_DIR/setup-watchtower.sh" ]; then
+    cp "$SCRIPTS_DIR/setup-watchtower.sh" setup-watchtower.sh
+    chmod +x setup-watchtower.sh
+    print_success "setup-watchtower.sh created"
+else
+    print_warning "setup-watchtower.sh not found in repository"
+fi
 
 # backup.sh
-print_info "Creating backup.sh..."
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/n8n-rapid-deploy/main/scripts/backup.sh -o backup.sh
-chmod +x backup.sh
-print_success "backup.sh created"
+if [ -f "$SCRIPTS_DIR/backup.sh" ]; then
+    cp "$SCRIPTS_DIR/backup.sh" backup.sh
+    chmod +x backup.sh
+    print_success "backup.sh created"
+else
+    print_warning "backup.sh not found in repository"
+fi
 
 echo ""
 sleep 1
