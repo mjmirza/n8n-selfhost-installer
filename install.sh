@@ -61,6 +61,16 @@ print_success "Running with root privileges"
 echo ""
 
 ###############################################################################
+# Determine Repository Paths (MUST be done before changing directories)
+###############################################################################
+# Get the absolute path to the repository where install.sh is located
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEMPLATES_DIR="$REPO_DIR/deployments/simple"
+SCRIPTS_DIR="$REPO_DIR/scripts"
+
+print_info "Repository location: $REPO_DIR"
+
+###############################################################################
 # STEP 1: System Check
 ###############################################################################
 print_step "STEP 1: System Compatibility Check"
@@ -307,12 +317,7 @@ sleep 1
 ###############################################################################
 print_step "STEP 6: Creating Configuration Files"
 
-# Determine the script directory (where install.sh is located)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEMPLATES_DIR="$SCRIPT_DIR/deployments/simple"
-SCRIPTS_DIR="$SCRIPT_DIR/scripts"
-
-# Verify template files exist
+# Verify template files exist (paths calculated at script start)
 if [ ! -f "$TEMPLATES_DIR/docker-compose.yml" ]; then
     print_error "Template file not found: $TEMPLATES_DIR/docker-compose.yml"
     print_error "Please ensure you're running install.sh from the repository root:"
@@ -581,13 +586,13 @@ echo "  ❤️  Support"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "  ⭐ Star on GitHub:"
-echo "     github.com/YOUR_USERNAME/n8n-rapid-deploy"
+echo "     github.com/mjmirza/n8n-selfhost-installer"
 echo ""
 echo "  📖 Documentation:"
-echo "     github.com/YOUR_USERNAME/n8n-rapid-deploy/blob/main/README.md"
+echo "     github.com/mjmirza/n8n-selfhost-installer/blob/main/README.md"
 echo ""
 echo "  🐛 Report Issues:"
-echo "     github.com/YOUR_USERNAME/n8n-rapid-deploy/issues"
+echo "     github.com/mjmirza/n8n-selfhost-installer/issues"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
