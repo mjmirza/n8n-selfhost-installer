@@ -402,6 +402,29 @@ sleep 1
 ###############################################################################
 print_step "STEP 8: Starting N8N Services"
 
+# Check for and stop any existing N8N containers
+print_info "Checking for existing N8N containers..."
+if docker ps -a | grep -E "n8n-n8n|n8n-caddy|n8n_n8n|n8n_caddy" > /dev/null 2>&1; then
+    print_warning "Found existing N8N containers. Stopping and removing..."
+
+    # Try to stop and remove with docker compose in the old directory first
+    if [ -d "/root/n8n-backup-"* ] 2>/dev/null; then
+        BACKUP_DIR=$(ls -td /root/n8n-backup-* 2>/dev/null | head -1)
+        if [ -f "$BACKUP_DIR/docker-compose.yml" ]; then
+            print_info "Stopping containers from backup directory..."
+            (cd "$BACKUP_DIR" && docker compose down 2>/dev/null) || true
+        fi
+    fi
+
+    # Stop any running N8N containers by name
+    docker stop $(docker ps -a -q --filter="name=n8n-n8n" --filter="name=n8n-caddy" --filter="name=n8n_n8n" --filter="name=n8n_caddy") 2>/dev/null || true
+    docker rm $(docker ps -a -q --filter="name=n8n-n8n" --filter="name=n8n-caddy" --filter="name=n8n_n8n" --filter="name=n8n_caddy") 2>/dev/null || true
+
+    print_success "Existing containers cleaned up"
+else
+    print_success "No existing containers found"
+fi
+
 print_info "Starting Docker containers..."
 docker compose up -d
 
