@@ -402,28 +402,80 @@ sleep 1
 ###############################################################################
 print_step "STEP 8: Starting N8N Services"
 
-# Check for and stop any existing N8N containers
-print_info "Checking for existing N8N containers..."
-if docker ps -a | grep -E "n8n-n8n|n8n-caddy|n8n_n8n|n8n_caddy" > /dev/null 2>&1; then
-    print_warning "Found existing N8N containers. Stopping and removing..."
+# Check for and cleanup existing containers and port conflicts
+print_info "Checking for port conflicts and existing containers..."
 
-    # Try to stop and remove with docker compose in the old directory first
-    if [ -d "/root/n8n-backup-"* ] 2>/dev/null; then
-        BACKUP_DIR=$(ls -td /root/n8n-backup-* 2>/dev/null | head -1)
-        if [ -f "$BACKUP_DIR/docker-compose.yml" ]; then
-            print_info "Stopping containers from backup directory..."
-            (cd "$BACKUP_DIR" && docker compose down 2>/dev/null) || true
+# Function to get container ID using a specific port
+get_container_using_port() {
+    local port=$1
+    docker ps --format '{{.ID}}' --filter "publish=$port" 2>/dev/null || echo ""
+}
+
+# Check critical ports: 80 (HTTP), 443 (HTTPS), 5678 (N8N)
+PORTS_TO_CHECK="80 443 5678"
+CONFLICTING_CONTAINERS=""
+
+for port in $PORTS_TO_CHECK; do
+    CONTAINER_ID=$(get_container_using_port $port)
+    if [ -n "$CONTAINER_ID" ]; then
+        CONTAINER_NAME=$(docker ps --format '{{.Names}}' --filter "id=$CONTAINER_ID")
+        print_warning "Port $port is in use by container: $CONTAINER_NAME ($CONTAINER_ID)"
+        CONFLICTING_CONTAINERS="$CONFLICTING_CONTAINERS $CONTAINER_ID"
+    fi
+done
+
+# Stop conflicting containers
+if [ -n "$CONFLICTING_CONTAINERS" ]; then
+    print_warning "Stopping containers using required ports..."
+    for container_id in $CONFLICTING_CONTAINERS; do
+        CONTAINER_NAME=$(docker ps --format '{{.Names}}' --filter "id=$container_id")
+        print_info "Stopping: $CONTAINER_NAME"
+        docker stop $container_id 2>/dev/null || true
+    done
+    print_success "Stopped conflicting containers"
+fi
+
+# Check for and stop any existing N8N containers by name
+if docker ps -a | grep -E "n8n-n8n|n8n-caddy|n8n_n8n|n8n_caddy" > /dev/null 2>&1; then
+    print_warning "Found existing N8N containers. Removing..."
+
+    # Try to stop and remove with docker compose in backup directories
+    for backup_dir in /root/n8n-backup-*; do
+        if [ -d "$backup_dir" ] && [ -f "$backup_dir/docker-compose.yml" ]; then
+            print_info "Cleaning up containers from: $backup_dir"
+            (cd "$backup_dir" && docker compose down 2>/dev/null) || true
         fi
+    done 2>/dev/null || true
+
+    # Force remove any remaining N8N containers by name
+    N8N_CONTAINER_IDS=$(docker ps -a -q --filter="name=n8n-n8n" --filter="name=n8n-caddy" --filter="name=n8n_n8n" --filter="name=n8n_caddy" 2>/dev/null)
+    if [ -n "$N8N_CONTAINER_IDS" ]; then
+        docker stop $N8N_CONTAINER_IDS 2>/dev/null || true
+        docker rm $N8N_CONTAINER_IDS 2>/dev/null || true
     fi
 
-    # Stop any running N8N containers by name
-    docker stop $(docker ps -a -q --filter="name=n8n-n8n" --filter="name=n8n-caddy" --filter="name=n8n_n8n" --filter="name=n8n_caddy") 2>/dev/null || true
-    docker rm $(docker ps -a -q --filter="name=n8n-n8n" --filter="name=n8n-caddy" --filter="name=n8n_n8n" --filter="name=n8n_caddy") 2>/dev/null || true
-
-    print_success "Existing containers cleaned up"
-else
-    print_success "No existing containers found"
+    print_success "Existing N8N containers cleaned up"
 fi
+
+# Final port check
+print_info "Verifying ports are free..."
+STILL_IN_USE=""
+for port in $PORTS_TO_CHECK; do
+    if docker ps --format '{{.ID}}' --filter "publish=$port" 2>/dev/null | grep -q .; then
+        CONTAINER_NAME=$(docker ps --format '{{.Names}}' --filter "publish=$port")
+        print_error "Port $port still in use by: $CONTAINER_NAME"
+        STILL_IN_USE="yes"
+    fi
+done
+
+if [ -n "$STILL_IN_USE" ]; then
+    print_error "Some ports are still in use. Please manually stop conflicting containers:"
+    print_error "  docker ps                    # List running containers"
+    print_error "  docker stop <container-id>   # Stop conflicting container"
+    exit 1
+fi
+
+print_success "All required ports are free"
 
 print_info "Starting Docker containers..."
 docker compose up -d
