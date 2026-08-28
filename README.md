@@ -1,5 +1,7 @@
 # 🚀 NEXT8N - Professional N8N Deployment System
 
+[![OpenRoots ORA 2.3](https://openroots.org/badge/ora.svg)](https://openroots.org/licenses/ora/2.3)
+
 **Enterprise-grade N8N self-hosted deployment with AI/LLM capabilities**
 
 Deploy N8N from simple Docker setups to AI-powered automation platforms with intelligent hardware detection and automatic optimization.
